@@ -58,8 +58,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       debugPrint('UI: Login call returned success: $success');
 
       if (success && mounted) {
-        debugPrint('UI: Navigating to /dashboard');
-        Navigator.of(context).pushReplacementNamed('/dashboard');
+        debugPrint('UI: Navigating to /main');
+        Navigator.of(context).pushReplacementNamed('/main');
       }
     }
   }
