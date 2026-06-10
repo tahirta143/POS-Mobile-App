@@ -7,6 +7,7 @@ import '../../models/lookup_data.dart';
 import '../../models/customer_model.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/custom_loader.dart';
 
 class SalesReceiptScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
@@ -17,14 +18,36 @@ class SalesReceiptScreen extends StatefulWidget {
 }
 
 class _SalesReceiptScreenState extends State<SalesReceiptScreen> {
+  bool _isInitialLoading = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final p = context.read<SalesInvoiceProvider>();
-      p.fetchInitialData();
-      p.fetchInvoices();
+      _loadData();
     });
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = true;
+      });
+    }
+    final p = context.read<SalesInvoiceProvider>();
+    await Future.wait([
+      p.fetchInitialData(),
+      p.fetchInvoices(),
+    ]);
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshData() async {
+    await context.read<SalesInvoiceProvider>().fetchInvoices();
   }
 
   void _openDialog({SaleInvoiceListModel? editRecord}) {
@@ -93,46 +116,56 @@ class _SalesReceiptScreenState extends State<SalesReceiptScreen> {
         label: const Text('New Invoice',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: Consumer<SalesInvoiceProvider>(
-        builder: (context, provider, _) {
-          if (provider.loading && provider.invoices.isEmpty) {
-            return const Center(
-                child: CircularProgressIndicator(
-                    color: AppConstants.primaryTeal));
-          }
-          if (provider.invoices.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.receipt_long_outlined,
-                      size: 64,
-                      color: isDark
-                          ? AppConstants.darkTextSecondary
-                          : AppConstants.lightTextSecondary),
-                  const SizedBox(height: 12),
-                  Text('No invoices found.',
-                      style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.only(
-                left: 16, right: 16, top: 16, bottom: 80),
-            itemCount: provider.invoices.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final inv = provider.invoices[index];
-              return _InvoiceCard(
-                inv: inv,
-                isDark: isDark,
-                onEdit: () => _openDialog(editRecord: inv),
-                onDelete: () => _confirmDelete(inv.id),
-              );
-            },
-          );
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _refreshData();
         },
+        color: AppConstants.primaryTeal,
+        child: Consumer<SalesInvoiceProvider>(
+          builder: (context, provider, _) {
+            if (_isInitialLoading) {
+              return const CustomLoader();
+            }
+            if (provider.invoices.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.receipt_long_outlined,
+                          size: 64,
+                          color: isDark
+                              ? AppConstants.darkTextSecondary
+                              : AppConstants.lightTextSecondary),
+                      const SizedBox(height: 12),
+                      Text('No invoices found.',
+                          style: theme.textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(
+                  left: 16, right: 16, top: 16, bottom: 80),
+              itemCount: provider.invoices.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final inv = provider.invoices[index];
+                return _InvoiceCard(
+                  inv: inv,
+                  isDark: isDark,
+                  onEdit: () => _openDialog(editRecord: inv),
+                  onDelete: () => _confirmDelete(inv.id),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

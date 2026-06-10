@@ -4,6 +4,7 @@ import '../../providers/goods_receipt_provider.dart';
 import '../../models/goods_receipt_model.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/custom_loader.dart';
 
 class GoodsReceiptNoteScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
@@ -15,12 +16,28 @@ class GoodsReceiptNoteScreen extends StatefulWidget {
 }
 
 class _GoodsReceiptNoteScreenState extends State<GoodsReceiptNoteScreen> {
+  bool _isInitialLoading = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<GoodsReceiptProvider>().fetchPendingOrders();
+      _loadData();
     });
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = true;
+      });
+    }
+    await context.read<GoodsReceiptProvider>().fetchPendingOrders();
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
+    }
   }
 
   void _showGrnDialog({PurchaseOrderModel? preSelected}) {
@@ -63,45 +80,54 @@ class _GoodsReceiptNoteScreenState extends State<GoodsReceiptNoteScreen> {
         label: const Text('Initiate GRN',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: Consumer<GoodsReceiptProvider>(
-        builder: (context, provider, _) {
-          if (provider.loading) {
-            return const Center(
-              child: CircularProgressIndicator(
-                  color: AppConstants.primaryTeal),
-            );
-          }
-
-          if (provider.pendingOrders.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.receipt_long_outlined,
-                      size: 64,
-                      color: isDark
-                          ? AppConstants.darkTextSecondary
-                          : AppConstants.lightTextSecondary),
-                  const SizedBox(height: 12),
-                  Text(
-                    'No pending goods receipts found.',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.pendingOrders.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final po = provider.pendingOrders[index];
-              return _PoCard(po: po, onInitiateGrn: () => _showGrnDialog(preSelected: po));
-            },
-          );
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await context.read<GoodsReceiptProvider>().fetchPendingOrders();
         },
+        color: AppConstants.primaryTeal,
+        child: Consumer<GoodsReceiptProvider>(
+          builder: (context, provider, _) {
+            if (_isInitialLoading) {
+              return const CustomLoader();
+            }
+
+            if (provider.pendingOrders.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.receipt_long_outlined,
+                          size: 64,
+                          color: isDark
+                              ? AppConstants.darkTextSecondary
+                              : AppConstants.lightTextSecondary),
+                      const SizedBox(height: 12),
+                      Text(
+                        'No pending goods receipts found.',
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: provider.pendingOrders.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final po = provider.pendingOrders[index];
+                return _PoCard(po: po, onInitiateGrn: () => _showGrnDialog(preSelected: po));
+              },
+            );
+          },
+        ),
       ),
     );
   }

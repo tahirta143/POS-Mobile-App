@@ -10,11 +10,20 @@ import 'providers/purchase_return_provider.dart';
 import 'providers/customer_provider.dart';
 import 'providers/sales_return_provider.dart';
 import 'providers/sales_invoice_provider.dart';
+import 'providers/expense_provider.dart';
+import 'providers/supplier_payment_provider.dart';
+import 'providers/customer_payment_provider.dart';
+import 'providers/daybook_provider.dart';
+import 'providers/supplier_ledger_provider.dart';
+import 'providers/expense_head_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/items/item_list_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/expense/expense_voucher_screen.dart';
+import 'screens/finance/supplier_payment_screen.dart';
+import 'screens/finance/customer_payment_screen.dart';
 import 'services/api_service.dart';
 
 void main() async {
@@ -33,6 +42,12 @@ void main() async {
         ChangeNotifierProvider(create: (_) => CustomerProvider(prefs)),
         ChangeNotifierProvider(create: (_) => SalesReturnProvider(prefs)),
         ChangeNotifierProvider(create: (_) => SalesInvoiceProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => ExpenseProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => SupplierPaymentProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => CustomerPaymentProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => DaybookProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => SupplierLedgerProvider(prefs)),
+        ChangeNotifierProvider(create: (_) => ExpenseHeadProvider(prefs)),
       ],
       child: const MyApp(),
     ),
@@ -46,10 +61,20 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
+    return MyAppWidget(themeProvider: themeProvider);
+  }
+}
+
+class MyAppWidget extends StatelessWidget {
+  final ThemeProvider themeProvider;
+  const MyAppWidget({super.key, required this.themeProvider});
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp(
       title: 'POS Mobile System',
       debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey, // Allows API client to navigate on 401
+      navigatorKey: navigatorKey,
       themeMode: themeProvider.themeMode,
       theme: themeProvider.lightTheme,
       darkTheme: themeProvider.darkTheme,
@@ -60,6 +85,9 @@ class MyApp extends StatelessWidget {
         '/dashboard': (context) => const DashboardScreen(),
         '/items': (context) => const ItemListScreen(),
         '/splash': (context) => const SplashScreen(),
+        '/expenses': (context) => const ExpenseVoucherScreen(),
+        '/supplier-payments': (context) => const SupplierPaymentScreen(),
+        '/customer-payments': (context) => const CustomerPaymentScreen(),
       },
     );
   }

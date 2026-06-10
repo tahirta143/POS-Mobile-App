@@ -7,6 +7,7 @@ import '../../providers/dashboard_provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/custom_loader.dart';
 import '../../models/dashboard_data.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -18,18 +19,35 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  bool _isInitialLoading = true;
+
   @override
   void initState() {
     super.initState();
     // Load dashboard stats on load
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _refreshStats();
+      _loadData();
     });
   }
 
-  void _refreshStats() {
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = true;
+      });
+    }
     final auth = Provider.of<AuthProvider>(context, listen: false);
-    Provider.of<DashboardProvider>(context, listen: false).fetchDashboardStats(auth);
+    await Provider.of<DashboardProvider>(context, listen: false).fetchDashboardStats(auth);
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshStats() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    await Provider.of<DashboardProvider>(context, listen: false).fetchDashboardStats(auth);
   }
 
   String _formatCurrency(double val) {
@@ -81,12 +99,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onPressed: widget.onMenuPressed,
         ),
       ),
-      body: dashboard.loading
-          ? const Center(child: CircularProgressIndicator(color: AppConstants.primaryTeal))
-          : !hasAnyAccess
-              ? _buildNoAccessScreen(isDark)
-              : SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _refreshStats();
+        },
+        color: AppConstants.primaryTeal,
+        child: _isInitialLoading
+            ? const CustomLoader()
+            : !hasAnyAccess
+                ? _buildNoAccessScreen(isDark)
+                : SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -202,7 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ],
                   ),
                 ),
-    );
+    ));
   }
 
   // Side Drawer for Navigation

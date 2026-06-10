@@ -12,6 +12,7 @@ import '../../widgets/custom_dropdown.dart';
 import '../../widgets/status_chip.dart';
 import '../../widgets/access_denied_widget.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/custom_loader.dart';
 
 class ItemListScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
@@ -23,17 +24,34 @@ class ItemListScreen extends StatefulWidget {
 
 class _ItemListScreenState extends State<ItemListScreen> {
   final _searchController = TextEditingController();
+  bool _isInitialLoading = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshData());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
-  void _refreshData() {
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = true;
+      });
+    }
+    await _refreshData();
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshData() async {
     final provider = Provider.of<ItemProvider>(context, listen: false);
-    provider.fetchItems();
-    provider.fetchLookups();
+    await Future.wait([
+      provider.fetchItems(),
+      provider.fetchLookups(),
+    ]);
   }
 
   @override
@@ -137,9 +155,14 @@ class _ItemListScreenState extends State<ItemListScreen> {
           onPressed: widget.onMenuPressed,
         ),
       ),
-      body: provider.loading
-          ? const Center(child: CircularProgressIndicator(color: AppConstants.primaryTeal))
-          : Column(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _refreshData();
+        },
+        color: AppConstants.primaryTeal,
+        child: _isInitialLoading
+            ? const CustomLoader()
+            : Column(
         children: [
           // Search + Add row
           Padding(
@@ -237,12 +260,17 @@ class _ItemListScreenState extends State<ItemListScreen> {
           // List
           Expanded(
             child: filteredItems.isEmpty
-                ? const Center(
-              child: Text(
-                'No items found.',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-            )
+                ? SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Container(
+                      height: MediaQuery.of(context).size.height * 0.6,
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'No items found.',
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ),
+                  )
                 : ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
               itemCount: filteredItems.length,
@@ -260,6 +288,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -281,10 +310,17 @@ class _ItemListScreenState extends State<ItemListScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
           color: isDark ? AppConstants.darkCard : Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppConstants.borderRadiusMedium),
           border: Border.all(
             color: isDark ? AppConstants.darkBorder : AppConstants.lightBorder,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.transparent : Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         padding: const EdgeInsets.all(12),
         child: Row(

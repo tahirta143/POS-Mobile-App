@@ -4,6 +4,7 @@ import '../../providers/purchase_return_provider.dart';
 import '../../models/purchase_return_model.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/custom_loader.dart';
 
 class PurchaseReturnScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
@@ -14,14 +15,40 @@ class PurchaseReturnScreen extends StatefulWidget {
 }
 
 class _PurchaseReturnScreenState extends State<PurchaseReturnScreen> {
+  bool _isInitialLoading = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final p = context.read<PurchaseReturnProvider>();
-      p.fetchPurchases();
-      p.fetchRecentReturns();
+      _loadData();
     });
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = true;
+      });
+    }
+    final p = context.read<PurchaseReturnProvider>();
+    await Future.wait([
+      p.fetchPurchases(),
+      p.fetchRecentReturns(),
+    ]);
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshData() async {
+    final p = context.read<PurchaseReturnProvider>();
+    await Future.wait([
+      p.fetchPurchases(),
+      p.fetchRecentReturns(),
+    ]);
   }
 
   void _openDialog({PurchaseReturnModel? editRecord}) {
@@ -77,8 +104,11 @@ class _PurchaseReturnScreenState extends State<PurchaseReturnScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () =>
-                context.read<PurchaseReturnProvider>().fetchRecentReturns(),
+            onPressed: () {
+              final p = context.read<PurchaseReturnProvider>();
+              p.fetchPurchases();
+              p.fetchRecentReturns();
+            },
           ),
         ],
       ),
@@ -90,46 +120,56 @@ class _PurchaseReturnScreenState extends State<PurchaseReturnScreen> {
         label: const Text('New Return',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: Consumer<PurchaseReturnProvider>(
-        builder: (context, provider, _) {
-          if (provider.loading && provider.recentReturns.isEmpty) {
-            return const Center(
-                child: CircularProgressIndicator(
-                    color: AppConstants.primaryTeal));
-          }
-          if (provider.recentReturns.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.undo,
-                      size: 64,
-                      color: isDark
-                          ? AppConstants.darkTextSecondary
-                          : AppConstants.lightTextSecondary),
-                  const SizedBox(height: 12),
-                  Text('No purchase returns recorded in system.',
-                      style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            );
-          }
-          return ListView.separated(
-            padding:
-                const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
-            itemCount: provider.recentReturns.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final record = provider.recentReturns[index];
-              return _ReturnCard(
-                record: record,
-                isDark: isDark,
-                onEdit: () => _openDialog(editRecord: record),
-                onDelete: () => _confirmDelete(record.id),
-              );
-            },
-          );
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _refreshData();
         },
+        color: AppConstants.primaryTeal,
+        child: Consumer<PurchaseReturnProvider>(
+          builder: (context, provider, _) {
+            if (_isInitialLoading) {
+              return const CustomLoader();
+            }
+            if (provider.recentReturns.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.undo,
+                          size: 64,
+                          color: isDark
+                              ? AppConstants.darkTextSecondary
+                              : AppConstants.lightTextSecondary),
+                      const SizedBox(height: 12),
+                      Text('No purchase returns recorded in system.',
+                          style: theme.textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding:
+                  const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 80),
+              itemCount: provider.recentReturns.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final record = provider.recentReturns[index];
+                return _ReturnCard(
+                  record: record,
+                  isDark: isDark,
+                  onEdit: () => _openDialog(editRecord: record),
+                  onDelete: () => _confirmDelete(record.id),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

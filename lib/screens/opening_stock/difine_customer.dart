@@ -4,6 +4,7 @@ import '../../providers/customer_provider.dart';
 import '../../models/customer_model.dart';
 import '../../utils/constants.dart';
 import '../../widgets/custom_app_bar.dart';
+import '../../widgets/custom_loader.dart';
 
 class DefineCustomerScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
@@ -14,12 +15,28 @@ class DefineCustomerScreen extends StatefulWidget {
 }
 
 class _DefineCustomerScreenState extends State<DefineCustomerScreen> {
+  bool _isInitialLoading = true;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CustomerProvider>().fetchCustomers();
+      _loadData();
     });
+  }
+
+  Future<void> _loadData() async {
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = true;
+      });
+    }
+    await context.read<CustomerProvider>().fetchCustomers();
+    if (mounted) {
+      setState(() {
+        _isInitialLoading = false;
+      });
+    }
   }
 
   void _openDialog({CustomerModel? customer}) {
@@ -88,46 +105,56 @@ class _DefineCustomerScreenState extends State<DefineCustomerScreen> {
         label: const Text('Add Customer',
             style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: Consumer<CustomerProvider>(
-        builder: (context, provider, _) {
-          if (provider.loading && provider.customers.isEmpty) {
-            return const Center(
-                child: CircularProgressIndicator(
-                    color: AppConstants.primaryTeal));
-          }
-          if (provider.customers.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.people_outline,
-                      size: 64,
-                      color: isDark
-                          ? AppConstants.darkTextSecondary
-                          : AppConstants.lightTextSecondary),
-                  const SizedBox(height: 12),
-                  Text('No customers found yet.',
-                      style: theme.textTheme.bodyMedium),
-                ],
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.only(
-                left: 16, right: 16, top: 16, bottom: 80),
-            itemCount: provider.customers.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (context, index) {
-              final c = provider.customers[index];
-              return _CustomerCard(
-                customer: c,
-                isDark: isDark,
-                onEdit: () => _openDialog(customer: c),
-                onDelete: () => _confirmDelete(c.id!),
-              );
-            },
-          );
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await context.read<CustomerProvider>().fetchCustomers();
         },
+        color: AppConstants.primaryTeal,
+        child: Consumer<CustomerProvider>(
+          builder: (context, provider, _) {
+            if (_isInitialLoading) {
+              return const CustomLoader();
+            }
+            if (provider.customers.isEmpty) {
+              return SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Container(
+                  height: MediaQuery.of(context).size.height * 0.7,
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.people_outline,
+                          size: 64,
+                          color: isDark
+                              ? AppConstants.darkTextSecondary
+                              : AppConstants.lightTextSecondary),
+                      const SizedBox(height: 12),
+                      Text('No customers found yet.',
+                          style: theme.textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
+              );
+            }
+            return ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(
+                  left: 16, right: 16, top: 16, bottom: 80),
+              itemCount: provider.customers.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final c = provider.customers[index];
+                return _CustomerCard(
+                  customer: c,
+                  isDark: isDark,
+                  onEdit: () => _openDialog(customer: c),
+                  onDelete: () => _confirmDelete(c.id!),
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
