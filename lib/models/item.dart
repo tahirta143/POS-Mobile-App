@@ -94,7 +94,7 @@ class ItemModel {
       reorder: toDouble(json['reorder'] ?? json['reorder_level']),
       perUnit: toInt(json['perUnit'] ?? json['per_unit']) ?? 1,
       isEnable: toBool(json['isEnable'] ?? json['is_enable']),
-      itemImage: json['itemImage'] ?? json['image_name'],
+      itemImage: json['itemImage'] ?? json['item_image_url'] ?? json['image_name'],
       categoryName: json['category_name'],
       typeName: json['type_name'],
       manufacturerName: json['manufacturer_name'],
@@ -124,6 +124,7 @@ class ItemModel {
       'reorder': reorder.toString(),
       'perUnit': perUnit.toString(),
       'isEnable': (isEnable ? 1 : 0).toString(),
+      if (itemImage != null && itemImage!.isNotEmpty) 'itemImageUrl': itemImage!,
     };
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/constants.dart';
+import '../utils/permission_constants.dart';
 
 class CustomDrawer extends StatelessWidget {
   final Function(int)? onNavigate;
@@ -61,21 +62,22 @@ class CustomDrawer extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 children: [
                   // Dashboard
-                  _buildDrawerItem(
-                    context: context,
-                    icon: Icons.dashboard_outlined,
-                    label: 'Dashboard',
-                    isSelected: currentIndex == 0,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      onNavigate?.call(0);
-                    },
-                  ),
+                  if (auth.isAdmin || auth.canAccess(PermissionConstants.dashboard))
+                    _buildDrawerItem(
+                      context: context,
+                      icon: Icons.dashboard_outlined,
+                      label: 'Dashboard',
+                      isSelected: currentIndex == 0,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        onNavigate?.call(0);
+                      },
+                    ),
 
                   // Items List
                   if (auth.isAdmin ||
-                      auth.canAccess('Items') ||
-                      auth.canAccess('Item'))
+                      auth.canAccess(PermissionConstants.items) ||
+                      auth.canAccess(PermissionConstants.item))
                     _buildDrawerItem(
                       context: context,
                       icon: Icons.inventory_2_outlined,
@@ -88,167 +90,205 @@ class CustomDrawer extends StatelessWidget {
                     ),
 
                   // Opening Stock Dropdown
-                  ExpansionTile(
-                    key: ValueKey('opening_stock_$isOpeningStockSelected'),
-                    initiallyExpanded: isOpeningStockSelected,
-                    leading: const Icon(Icons.inventory),
-                    title: const Text(
-                      'Opening Stock',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
+                  () {
+                    final showGRN = auth.isAdmin || (auth.canAccess(PermissionConstants.stock) && auth.can(PermissionConstants.stock, PermissionConstants.create));
+                    final showPurchaseReturn = auth.isAdmin || (auth.canAccess(PermissionConstants.purchaseReturn) && auth.can(PermissionConstants.purchaseReturn, PermissionConstants.read));
+                    final showDefineCustomer = auth.isAdmin || (auth.canAccess(PermissionConstants.customer) && auth.can(PermissionConstants.customer, PermissionConstants.read));
+                    final showSalesReceipt = auth.isAdmin || (auth.canAccess(PermissionConstants.sale) && auth.can(PermissionConstants.sale, PermissionConstants.create));
+                    final showSalesReturn = auth.isAdmin || (auth.canAccess(PermissionConstants.saleReturn) && auth.can(PermissionConstants.saleReturn, PermissionConstants.read));
+
+                    if (!showGRN && !showPurchaseReturn && !showDefineCustomer && !showSalesReceipt && !showSalesReturn) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return ExpansionTile(
+                      key: ValueKey('opening_stock_$isOpeningStockSelected'),
+                      initiallyExpanded: isOpeningStockSelected,
+                      leading: const Icon(Icons.inventory),
+                      title: const Text(
+                        'Opening Stock',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
-                    children: [
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.receipt_long,
-                        label: 'Goods Receipt Note',
-                        isSelected: currentIndex == 1,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(1);
-                        },
-                      ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.undo,
-                        label: 'Purchase Return',
-                        isSelected: currentIndex == 2,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(2);
-                        },
-                      ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.people_outline,
-                        label: 'Define Customer',
-                        isSelected: currentIndex == 3,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(3);
-                        },
-                      ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.point_of_sale,
-                        label: 'Sales Receipt',
-                        isSelected: currentIndex == 4,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(4);
-                        },
-                      ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.assignment_return,
-                        label: 'Sales Return',
-                        isSelected: currentIndex == 5,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(5);
-                        },
-                      ),
-                    ],
-                  ),
+                      children: [
+                        if (showGRN)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.receipt_long,
+                            label: 'Goods Receipt Note',
+                            isSelected: currentIndex == 1,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(1);
+                            },
+                          ),
+                        if (showPurchaseReturn)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.undo,
+                            label: 'Purchase Return',
+                            isSelected: currentIndex == 2,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(2);
+                            },
+                          ),
+                        if (showDefineCustomer)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.people_outline,
+                            label: 'Define Customer',
+                            isSelected: currentIndex == 3,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(3);
+                            },
+                          ),
+                        if (showSalesReceipt)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.point_of_sale,
+                            label: 'Sales Receipt',
+                            isSelected: currentIndex == 4,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(4);
+                            },
+                          ),
+                        if (showSalesReturn)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.assignment_return,
+                            label: 'Sales Return',
+                            isSelected: currentIndex == 5,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(5);
+                            },
+                          ),
+                      ],
+                    );
+                  }(),
 
                   // Accounts & Finance Dropdown
-                  ExpansionTile(
-                    key: ValueKey('accounts_finance_$isAccountsFinanceSelected'),
-                    initiallyExpanded: isAccountsFinanceSelected,
-                    leading: const Icon(Icons.account_balance_wallet_outlined),
-                    title: const Text(
-                      'Accounts & Finance',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    children: [
-                      if (auth.isAdmin || auth.canAccess('Expense Voucher'))
-                        _buildDrawerItem(
-                          context: context,
-                          icon: Icons.receipt_long_outlined,
-                          label: 'Expense Voucher',
-                          isSelected: currentIndex == 7,
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            onNavigate?.call(7);
-                          },
+                  () {
+                    final showExpenseVoucher = auth.isAdmin || auth.canAccess(PermissionConstants.expenseVoucher);
+                    final showExpenseHead = auth.isAdmin || auth.canAccess(PermissionConstants.expenseHead);
+                    final showSupplierPayment = auth.isAdmin || (auth.canAccess(PermissionConstants.supplierPayment) && auth.can(PermissionConstants.supplierPayment, PermissionConstants.read));
+                    final showCustomerPayment = auth.isAdmin || (auth.canAccess(PermissionConstants.customerPayment) && auth.can(PermissionConstants.customerPayment, PermissionConstants.read));
+                    final showDayBook = auth.isAdmin || auth.canAccess(PermissionConstants.dayBook);
+                    final showAmountPayable = auth.isAdmin || (auth.canAccess(PermissionConstants.supplierPayment) && auth.can(PermissionConstants.supplierPayment, PermissionConstants.read));
+                    final showAmountReceivable = auth.isAdmin || (auth.canAccess(PermissionConstants.customerPayment) && auth.can(PermissionConstants.customerPayment, PermissionConstants.read));
+                    final showSupplierLedger = auth.isAdmin || (auth.canAccess(PermissionConstants.supplierLedger) && auth.can(PermissionConstants.supplierLedger, PermissionConstants.read));
+
+                    if (!showExpenseVoucher && !showExpenseHead && !showSupplierPayment && !showCustomerPayment &&
+                        !showDayBook && !showAmountPayable && !showAmountReceivable && !showSupplierLedger) {
+                      return const SizedBox.shrink();
+                    }
+
+                    return ExpansionTile(
+                      key: ValueKey('accounts_finance_$isAccountsFinanceSelected'),
+                      initiallyExpanded: isAccountsFinanceSelected,
+                      leading: const Icon(Icons.account_balance_wallet_outlined),
+                      title: const Text(
+                        'Accounts & Finance',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
                         ),
-                      if (auth.isAdmin || auth.canAccess('Expense Head'))
-                        _buildDrawerItem(
-                          context: context,
-                          icon: Icons.category_outlined,
-                          label: 'Expense Head',
-                          isSelected: currentIndex == 14,
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            onNavigate?.call(14);
-                          },
-                        ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.payment_outlined,
-                        label: 'Supplier Payment',
-                        isSelected: currentIndex == 8,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(8);
-                        },
                       ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.monetization_on_outlined,
-                        label: 'Customer Payment',
-                        isSelected: currentIndex == 9,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(9);
-                        },
-                      ),
-                      if (auth.isAdmin || auth.canAccess('Day Book'))
-                        _buildDrawerItem(
-                          context: context,
-                          icon: Icons.calendar_month_outlined,
-                          label: 'Day Book',
-                          isSelected: currentIndex == 10,
-                          onTap: () {
-                            Navigator.of(context).pop();
-                            onNavigate?.call(10);
-                          },
-                        ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.arrow_upward_rounded,
-                        label: 'Amount Payable',
-                        isSelected: currentIndex == 11,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(11);
-                        },
-                      ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.arrow_downward_rounded,
-                        label: 'Amount Receivable',
-                        isSelected: currentIndex == 12,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(12);
-                        },
-                      ),
-                      _buildDrawerItem(
-                        context: context,
-                        icon: Icons.receipt_outlined,
-                        label: 'Supplier Ledger',
-                        isSelected: currentIndex == 13,
-                        onTap: () {
-                          Navigator.of(context).pop();
-                          onNavigate?.call(13);
-                        },
-                      ),
-                    ],
-                  ),
+                      children: [
+                        if (showExpenseVoucher)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.receipt_long_outlined,
+                            label: 'Expense Voucher',
+                            isSelected: currentIndex == 7,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(7);
+                            },
+                          ),
+                        if (showExpenseHead)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.category_outlined,
+                            label: 'Expense Head',
+                            isSelected: currentIndex == 14,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(14);
+                            },
+                          ),
+                        if (showSupplierPayment)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.payment_outlined,
+                            label: 'Supplier Payment',
+                            isSelected: currentIndex == 8,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(8);
+                            },
+                          ),
+                        if (showCustomerPayment)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.monetization_on_outlined,
+                            label: 'Customer Payment',
+                            isSelected: currentIndex == 9,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(9);
+                            },
+                          ),
+                        if (showDayBook)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.calendar_month_outlined,
+                            label: 'Day Book',
+                            isSelected: currentIndex == 10,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(10);
+                            },
+                          ),
+                        if (showAmountPayable)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.arrow_upward_rounded,
+                            label: 'Amount Payable',
+                            isSelected: currentIndex == 11,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(11);
+                            },
+                          ),
+                        if (showAmountReceivable)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.arrow_downward_rounded,
+                            label: 'Amount Receivable',
+                            isSelected: currentIndex == 12,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(12);
+                            },
+                          ),
+                        if (showSupplierLedger)
+                          _buildDrawerItem(
+                            context: context,
+                            icon: Icons.receipt_outlined,
+                            label: 'Supplier Ledger',
+                            isSelected: currentIndex == 13,
+                            onTap: () {
+                              Navigator.of(context).pop();
+                              onNavigate?.call(13);
+                            },
+                          ),
+                      ],
+                    );
+                  }(),
                 ],
               ),
             ),

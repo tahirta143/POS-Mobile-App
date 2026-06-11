@@ -59,16 +59,16 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Login action — mirrors React authSlice loginUser thunk exactly
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String identifier, String password) async {
     _loading = true;
     _error = null;
     notifyListeners();
 
-    debugPrint('AUTH: Starting login attempt for $email');
+    debugPrint('AUTH: Starting login attempt for $identifier');
 
     try {
       final response = await _apiService.post('/auth/login', {
-        'email': email,
+        'identifier': identifier,
         'password': password,
       });
 
@@ -121,7 +121,7 @@ class AuthProvider with ChangeNotifier {
         _loading = false;
         debugPrint('-----------------------------------');
         debugPrint('STATUS: LOGGED IN');
-        debugPrint('AUTH: Login SUCCESSFUL. User: ${_user?.email}, IsAdmin: $isAdmin');
+        debugPrint('AUTH: Login SUCCESSFUL. User: ${_user?.email ?? _user?.name}, IsAdmin: $isAdmin');
         debugPrint('-----------------------------------');
         notifyListeners();
         return true;
@@ -219,7 +219,7 @@ class AuthProvider with ChangeNotifier {
 
     final normalized = moduleName.toLowerCase().trim();
     return _permissions.modules.any((m) {
-      final name = (m.moduleName ?? m.slug ?? '').toLowerCase().trim();
+      final name = (m.name ?? m.moduleName ?? m.slug ?? '').toLowerCase().trim();
       return name == normalized || name.contains(normalized) || normalized.contains(name);
     });
   }
@@ -229,15 +229,24 @@ class AuthProvider with ChangeNotifier {
     if (isAdmin) return true;
     if (moduleName.isEmpty) return false;
 
+    // First check module access
+    if (!canAccess(moduleName)) return false;
+    if (action.isEmpty) return true;
+
     final functionalities = _permissions.functionalities;
     final normalizedModule = moduleName.toLowerCase().trim();
     final normalizedAction = action.toLowerCase().trim();
 
     return functionalities.any((func) {
-      final funcName = (func.name ?? '').toLowerCase();
-      final hasModule = funcName.contains(normalizedModule);
+      final funcName = (func.name ?? func.slug ?? '').toLowerCase();
       final hasAction = funcName.contains(normalizedAction);
-      return hasModule && hasAction;
+      
+      // Verify relationship to the module (name match or ID match)
+      final hasModuleRelation = funcName.contains(normalizedModule) || 
+          _permissions.modules.any((m) => m.id == func.moduleId && 
+              (m.name ?? m.moduleName ?? m.slug ?? '').toLowerCase().contains(normalizedModule));
+              
+      return hasAction && hasModuleRelation;
     });
   }
 

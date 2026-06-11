@@ -13,6 +13,7 @@ import '../../widgets/status_chip.dart';
 import '../../widgets/access_denied_widget.dart';
 import '../../widgets/custom_app_bar.dart';
 import '../../widgets/custom_loader.dart';
+import '../../utils/permission_constants.dart';
 
 class ItemListScreen extends StatefulWidget {
   final VoidCallback? onMenuPressed;
@@ -127,16 +128,18 @@ class _ItemListScreenState extends State<ItemListScreen> {
     final provider = Provider.of<ItemProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    const moduleName = 'Items';
-    final canReadItem = auth.isAdmin || auth.can(moduleName, 'read');
-    final canCreateItem = auth.isAdmin || auth.can(moduleName, 'create');
-    final canUpdateItem = auth.isAdmin || auth.can(moduleName, 'update');
-    final canDeleteItem = auth.isAdmin || auth.can(moduleName, 'delete');
+    final canReadItem = auth.isAdmin || auth.can(PermissionConstants.items, PermissionConstants.read);
+    final canCreateItem = auth.isAdmin || auth.can(PermissionConstants.items, PermissionConstants.create);
+    final canUpdateItem = auth.isAdmin || auth.can(PermissionConstants.items, PermissionConstants.update);
+    final canDeleteItem = auth.isAdmin || auth.can(PermissionConstants.items, PermissionConstants.delete);
 
     if (!canReadItem) {
       return Scaffold(
         appBar: const CustomAppBar(title: 'Item Management'),
-        body: const AccessDeniedWidget(module: 'Items', action: 'READ'),
+        body: const AccessDeniedWidget(
+          module: PermissionConstants.items,
+          action: PermissionConstants.read,
+        ),
       );
     }
 
@@ -342,7 +345,7 @@ class _ItemListScreenState extends State<ItemListScreen> {
                   ? ClipRRect(
                 borderRadius: BorderRadius.circular(7),
                 child: Image.network(
-                  '${AppConstants.apiBaseUrl}/uploads/${item.itemImage}',
+                  _getItemImageUrl(item.itemImage) ?? '',
                   width: 46,
                   height: 46,
                   fit: BoxFit.cover,
@@ -968,7 +971,7 @@ class _ItemFormDialogState extends State<_ItemFormDialog> {
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(6),
                                 child: Image.network(
-                                  '${AppConstants.apiBaseUrl}/uploads/$_existingImageName',
+                                  _getItemImageUrl(_existingImageName) ?? '',
                                   width: 36,
                                   height: 36,
                                   fit: BoxFit.cover,
@@ -1245,4 +1248,15 @@ class _CompactDropdown<T> extends StatelessWidget {
       ],
     );
   }
+}
+
+String? _getItemImageUrl(String? src) {
+  if (src == null || src.isEmpty) return null;
+  if (src.startsWith('http://') || src.startsWith('https://')) {
+    return src;
+  }
+  final Uri apiUri = Uri.parse(AppConstants.apiBaseUrl);
+  final String host = '${apiUri.scheme}://${apiUri.host}${apiUri.hasPort ? ":${apiUri.port}" : ""}';
+  final String formattedSrc = src.startsWith('/') ? src : '/$src';
+  return '$host$formattedSrc';
 }

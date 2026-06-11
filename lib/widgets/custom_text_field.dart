@@ -10,6 +10,7 @@ class CustomTextField extends StatefulWidget {
   final String? Function(String?)? validator;
   final bool required;
   final String? suffixText;
+  final Widget? prefixIcon;
 
   const CustomTextField({
     super.key,
@@ -21,6 +22,7 @@ class CustomTextField extends StatefulWidget {
     this.validator,
     this.required = false,
     this.suffixText,
+    this.prefixIcon,
   });
 
   @override
@@ -66,6 +68,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           ),
           decoration: InputDecoration(
             hintText: widget.placeholder,
+            prefixIcon: widget.prefixIcon,
             suffixIcon: widget.isPassword
                 ? IconButton(
                     icon: Icon(
